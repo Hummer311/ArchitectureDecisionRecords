@@ -1,3 +1,6 @@
+function Get-AdrDirFileName { '.adr-dir' }
+function Get-AdrDirDefaultValue { 'doc/adr' }
+
 <#
 .Synopsis
 Gets the directory ADRs are stored in for this project.
@@ -15,14 +18,14 @@ Function Get-AdrDir {
   [OutputType([string])]
   Param()
 
-  if ($env:ADR_DIR -and (Test-Path '.adr-dir')) {
-    throw 'Cannot use both the .adr-dir file and ADR_DIR env var.'
+  if ($env:ADR_DIR -and (Test-Path (Get-AdrDirFileName))) {
+    throw "Cannot use both the $(Get-AdrDirFileName) file and ADR_DIR env var."
   } elseif ($env:ADR_DIR) {
     $env:ADR_DIR
-  } elseif (Test-Path '.adr-dir') {
-    Get-Content '.adr-dir'
+  } elseif (Test-Path (Get-AdrDirFileName)) {
+    Get-Content (Get-AdrDirFileName)
   } else {
-    'doc/adr'
+    (Get-AdrDirDefaultValue)
   }
 }
 
@@ -178,6 +181,21 @@ Function ConvertFrom-AdrText {
   }
 }
 
+
+<#
+.Synopsis
+Creates the .adr-dir file.
+
+.Description
+ Creates the .adr-dir file in the current directory with the relative path to $Target as content.
+#>
+function Initialize-AdrDirFile([string] $targetDir) {
+  $cwd = (Get-Location)
+  $adrDirFile = Join-Path $cwd (Get-AdrDirFileName)
+  $adrDir = Join-Path $cwd $targetDir
+  Set-Content -Path $adrDirFile -Value ([IO.Path]::GetRelativePath($cwd, $adrDir))
+}
+
 <#
 .Synopsis
 Initializes an ADR directory.
@@ -187,8 +205,10 @@ Initliazes an ADR directory and populates it with an initial decision to use ADR
 #>
 Function Initialize-Adr {
   [CmdletBinding()]
-  Param()
+  Param([string] $TargetDir = (Get-AdrDirDefaultValue))
 
+  
+  Initialize-AdrDirFile $TargetDir
   $TemplateFile = Join-Path -Path $MyInvocation.MyCommand.Module.ModuleBase -ChildPath 'init.md'
   New-Adr -Title 'Record architecture decisions' -Status 'Accepted' -Template $TemplateFile
 }
